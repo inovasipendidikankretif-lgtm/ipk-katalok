@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Katalog Buku - IPK</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    :root {
+      --primary: #ea580c;
+      --bg-body: #020617;
+      --bg-card: #1e293b;
+      --glass: rgba(30, 41, 59, 0.7);
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: #f1f5f9;
+      font-family: 'Poppins', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .custom-nav {
+      background: var(--glass) !important;
+      backdrop-filter: blur(15px);
+      border-bottom: 1px solid #334155;
+    }
+
+    .hero-bg {
+      background: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.8)), 
+                  url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=1350&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+      padding: 100px 0 80px;
+    }
+
+    /* Form Drawer Admin (Sisi Kiri Sesuai Aturan Desain Awal) */
+    #sidebarAdmin {
+      position: fixed;
+      top: 0;
+      left: -420px;
+      width: 400px;
+      height: 100vh;
+      background: #0f172a;
+      border-right: 4px solid var(--primary);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1060;
+      box-shadow: 15px 0 50px rgba(0,0,0,0.8);
+      padding: 30px;
+    }
+    #sidebarAdmin.open { left: 0; }
+
+    .book-card {
+      background: var(--bg-card);
+      border-radius: 15px;
+      border: 1px solid #334155;
+      transition: all 0.4s ease;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .book-card:hover {
+      transform: translateY(-10px);
+      border-color: var(--primary);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+    }
+    .book-card img {
+      width: 100%;
+      height: 290px;
+      object-fit: cover;
+      background: #020617;
+    }
+
+    .search-box {
+      background: var(--bg-card);
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 20px;
+      margin-top: -40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .info-badge {
+      font-size: 10px;
+      background: rgba(2, 6, 23, 0.5);
+      padding: 4px 10px;
+      border-radius: 50px;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .btn-primary-ipk {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      font-weight: bold;
+    }
+    .btn-primary-ipk:hover { background-color: #c2410c; color: white; }
+
+    .page-link-ipk {
+      background: var(--bg-card);
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 10px;
+      margin: 0 4px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .page-link-ipk.active { background: var(--primary); border-color: var(--primary); }
+    .page-link-ipk:hover:not(.active) { background: #334155; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar custom-nav sticky-top p-3">
+    <div class="container d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <span class="badge me-2 py-2 px-3 fw-bold fs-6" style="background: var(--primary) !important;">IPK</span>
+        <span class="fw-bold text-uppercase d-none d-md-inline" style="letter-spacing: 2px;">Digital Library</span>
+      </div>
+      <button onclick="checkAdminAccess()" class="btn btn-outline-light rounded-pill px-4 fw-bold" id="adminPanelBtn">
+        <i class="fa-solid fa-lock me-2"></i>ADMIN PANEL
+      </button>
+    </div>
+  </nav>
+
+  <header class="hero-bg text-center">
+    <div class="container">
+      <h1 class="display-3 fw-bold text-white mb-3">Pusat Literasi <span style="color: var(--primary)">Digital</span></h1>
+      <p class="lead text-secondary opacity-75">Inovasi Pendidikan Kreatif - Membangun Masa Depan Melalui Membaca</p>
+    </div>
+  </header>
+
+  <main class="container py-4">
+    
+    <div class="search-box mb-5">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <select id="searchType" class="form-select bg-dark text-white border-secondary rounded-pill">
+            <option value="judul">Judul Buku</option>
+            <option value="isbn">ISBN</option>
+          </select>
+        </div>
+        <div class="col-md-9">
+          <div class="input-group">
+            <input type="text" id="searchInput" class="form-control bg-dark text-white border-secondary rounded-pill-start px-4" placeholder="Cari buku kesukaan Anda..." onkeyup="handleSearch()">
+            <span class="input-group-text bg-secondary text-white border-0 rounded-pill-end"><i class="fa-solid fa-search"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-4 align-items-center">
+      <div class="col-md-6">
+        <h3 class="fw-bold text-uppercase"><i class="fa-solid fa-book-open me-3 text-warning"></i>Koleksi Terbaru</h3>
+        <p id="pagingInfo" class="text-secondary small">Sinkronisasi Database...</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+         <span class="badge bg-secondary rounded-pill px-3 py-2 me-2">Ref: <span id="sRef">0</span></span>
+         <span class="badge bg-secondary rounded-pill px-3 py-2 me-2">Mon: <span id="sMon">0</span></span>
+         <span class="badge bg-secondary rounded-pill px-3 py-2">BC: <span id="sChap">0</span></span>
+      </div>
+    </div>
+
+    <div id="loader" class="text-center py-5">
+      <div class="spinner-grow text-warning" role="status"></div>
+      <p class="text-secondary mt-3">Mengambil data dari Cloud...</p>
+    </div>
+
+    <div id="bookGrid" class="row row-cols-2 row-cols-md-4 g-4"></div>
+
+    <div id="pagination" class="d-flex justify-content-center mt-5"></div>
+  </main>
+
+  <div id="sidebarAdmin" class="overflow-y-auto">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+      <h4 class="fw-bold m-0" id="sidebarTitle" style="color: var(--primary)">INPUT KOLEKSI</h4>
+      <button type="button" onclick="toggleSidebar()" class="btn-close btn-close-white"></button>
+    </div>
+    
+    <form id="bookForm" class="row g-3" style="font-size: 13px;">
+      <input type="hidden" id="rowNum">
+      <input type="hidden" id="idCover">
+      
+      <div class="col-12"><input type="text" id="judul" class="form-control bg-dark text-white border-secondary" placeholder="Judul Buku" required></div>
+      <div class="col-12"><input type="text" id="penulis" class="form-control bg-dark text-white border-secondary" placeholder="Penulis" required></div>
+      <div class="col-6"><input type="number" id="tahun" class="form-control bg-dark text-white border-secondary" placeholder="Tahun Terbit" required></div>
+      <div class="col-6"><input type="number" id="halaman" class="form-control bg-dark text-white border-secondary" placeholder="Halaman" required></div>
+      <div class="col-12"><input type="text" id="isbn" class="form-control bg-dark text-white border-secondary" placeholder="ISBN" required></div>
+      <div class="col-12"><input type="number" id="harga" class="form-control bg-dark text-white border-secondary" placeholder="Harga Buku (Rp)" required></div>
+      <div class="col-12">
+        <select id="kategori" class="form-select bg-dark text-white border-secondary">
+          <option value="Referensi">Referensi</option>
+          <option value="Monograf">Monograf</option>
+          <option value="Book Chapter">Book Chapter</option>
+        </select>
+      </div>
+      <div class="col-12"><textarea id="deskripsi" class="form-control bg-dark text-white border-secondary" placeholder="Deskripsi Singkat Koleksi Buku..." rows="3" required></textarea></div>
+      <div class="col-12">
+        <label class="small text-secondary fw-bold mb-1">Upload Cover Buku</label>
+        <input type="file" id="fileCover" class="form-control bg-dark text-white border-secondary" accept="image/*">
+      </div>
+      <div class="col-12 pt-3">
+        <button type="submit" id="btnSubmit" class="btn btn-primary-ipk w-100 py-3 rounded-pill text-uppercase">PUBLISH BUKU</button>
+      </div>
+    </form>
+  </div>
+
+  <footer class="mt-5 py-5 border-top border-secondary text-center text-secondary">
+    <p>© 2026 Inovasi Pendidikan Kreatif. Seluruh Hak Cipta Dilindungi.</p>
+  </footer>
+
+  <script>
+    let allBooks = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const limit = 8;
+    let isAdmin = false;
+
+    window.onload = () => { loadData(); };
+
+    function loadData() {
+      document.getElementById('loader').classList.remove('d-none');
+      google.script.run.withSuccessHandler(res => {
+        allBooks = res;
+        filteredData = [...allBooks];
+        calcStats();
+        showPage(1);
+        document.getElementById('loader').classList.add('d-none');
+      }).getSheetData();
+    }
+
+    function calcStats() {
+      const s = { 'Referensi': 0, 'Monograf': 0, 'Book Chapter': 0 };
+      allBooks.forEach(b => { 
+        let k = b['Kategori'] ? b['Kategori'].toString().trim() : '';
+        if(s[k] !== undefined) s[k]++; 
+      });
+      document.getElementById('sRef').innerText = s['Referensi'];
+      document.getElementById('sMon').innerText = s['Monograf'];
+      document.getElementById('sChap').innerText = s['Book Chapter'];
+    }
+
+    function handleSearch() {
+      const type = document.getElementById('searchType').value;
+      const key = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      filteredData = allBooks.filter(b => {
+        const val = type === 'judul' ? b['Judul Buku'] : b['ISBN'];
+        return val ? val.toString().toLowerCase().includes(key) : false;
+      });
+      showPage(1);
+    }
+
+    function showPage(page) {
+      currentPage = page;
+      const start = (page - 1) * limit;
+      const data = filteredData.slice(start, start + limit);
+      renderGrid(data);
+      renderPaging();
+      
+      const total = Math.ceil(filteredData.length / limit) || 1;
+      document.getElementById('pagingInfo').innerText = `Menampilkan Halaman ${page} dari ${total} (${filteredData.length} Koleksi)`;
+    }
+
+    function renderGrid(data) {
+      const container = document.getElementById('bookGrid');
+      if(!data.length) {
+        container.innerHTML = `<div class="col-12 text-center py-5 opacity-50">Tidak ada buku ditemukan.</div>`;
+        return;
+      }
+
+      let html = "";
+      data.forEach(b => {
+        const id = b['ID Cover Buku'] ? b['ID Cover Buku'].toString().trim() : "";
+        const img = id ? `https://lh3.googleusercontent.com/d/${id}` : "https://via.placeholder.com/300x400";
+        const wa = "https://wa.me/6285179917811?text=" + encodeURIComponent(`Halo IPK, saya tertarik dengan buku: *${b['Judul Buku']}*`);
+        
+        let adminBtns = "";
+        if(isAdmin) {
+          const raw = btoa(encodeURIComponent(JSON.stringify(b)));
+          adminBtns = `
+            <div class="d-flex gap-1 mt-2 pt-2 border-top border-secondary">
+              <button type="button" onclick="editModal('${raw}')" class="btn btn-warning btn-sm flex-fill fw-bold" style="font-size:10px;"><i class="fa-solid fa-edit me-1"></i>EDIT</button>
+              <button type="button" onclick="deleteBook('${b.rowNum}', '${b['Judul Buku'].replace(/'/g, "\\'")}')" class="btn btn-danger btn-sm flex-fill fw-bold" style="font-size:10px;"><i class="fa-solid fa-trash me-1"></i>HAPUS</button>
+            </div>`;
+        }
+
+        html += `
+          <div class="col">
+            <div class="book-card p-2 shadow-sm">
+              <img src="${img}" class="rounded-3 shadow-sm mb-2" onerror="this.src='https://via.placeholder.com/300x400'">
+              <div class="d-flex gap-1 mb-2 flex-wrap">
+                <span class="info-badge">ISBN: ${b['ISBN'] || '-'}</span>
+                <span class="info-badge">${b['Tahun Terbit'] || '-'}</span>
+              </div>
+              <div class="d-flex flex-column flex-grow-1 justify-content-between">
+                <div>
+                  <p class="text-warning small fw-bold text-uppercase mb-1" style="font-size: 10px;">${b['Kategori']}</p>
+                  <h6 class="fw-bold mb-1 text-white text-uppercase" style="height: 38px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${b['Judul Buku']}</h6>
+                  <p class="text-secondary small italic mb-2 text-truncate" style="font-size:11px;">${b['Penulis']}</p>
+                </div>
+                <div class="mt-auto">
+                  <p class="fw-bold fs-5 m-0 mb-2" style="color: var(--primary)">Rp${Number(b['Harga']).toLocaleString('id-ID')}</p>
+                  <a href="${wa}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold py-2"><i class="fa-brands fa-whatsapp me-2"></i>PESAN</a>
+                  ${adminBtns}
+                </div>
+              </div>
+            </div>
+          </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function renderPaging() {
+      const total = Math.ceil(filteredData.length / limit);
+      const container = document.getElementById('pagination');
+      container.innerHTML = "";
+      if(total <= 1) return;
+
+      for(let i=1; i<=total; i++) {
+        const btn = document.createElement('button');
+        btn.innerText = i;
+        btn.className = `page-link-ipk ${i === currentPage ? 'active' : ''}`;
+        btn.onclick = () => { showPage(i); window.scrollTo({top: 400, behavior: 'smooth'}); };
+        container.appendChild(btn);
+      }
+    }
+
+    function toggleSidebar() { 
+      document.getElementById('sidebarAdmin').classList.toggle('open'); 
+    }
+
+    // Mengontrol Hak Akses dan Fungsi Ganda Tombol Tambah Buku Admin
+    async function checkAdminAccess() {
+      if(isAdmin) {
+        // Mengembalikan perilaku asli: Jika admin telah aktif, klik tombol ini akan membuka Drawer Input Baru
+        document.getElementById('sidebarTitle').innerText = "INPUT KOLEKSI BUKU";
+        document.getElementById('bookForm').reset();
+        document.getElementById('rowNum').value = "";
+        document.getElementById('idCover').value = "";
+        document.getElementById('btnSubmit').innerText = "PUBLISH BUKU";
+        toggleSidebar(); 
+        return; 
+      }
+      
+      const { value: pass } = await Swal.fire({ 
+        title: 'Verifikasi Admin', 
+        input: 'password', 
+        inputPlaceholder: 'Masukkan Password...',
+        confirmButtonColor: '#ea580c', 
+        background: '#0f172a', 
+        color: '#fff' 
+      });
+      
+      if (pass) {
+        google.script.run.withSuccessHandler(isValid => {
+          if(isValid) {
+            isAdmin = true;
+            // Merubah label tombol menjadi tombol fungsional "TAMBAH BUKU"
+            document.getElementById('adminPanelBtn').innerHTML = `<i class="fa-solid fa-plus me-2"></i>TAMBAH BUKU`;
+            document.getElementById('adminPanelBtn').className = "btn btn-warning rounded-pill px-4 fw-bold text-dark";
+            Swal.fire({ icon: 'success', title: 'Akses Diterima!', showConfirmButton: false, timer: 1500 });
+            showPage(currentPage);
+            
+            // Otomatis munculkan panel form setelah login berhasil pertama kali
+            toggleSidebar();
+          } else {
+            Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: 'Password Salah!' });
+          }
+        }).verifyAdminPassword(pass);
+      }
+    }
+
+    function editModal(raw) {
+      const b = JSON.parse(decodeURIComponent(atob(raw)));
+      document.getElementById('sidebarTitle').innerText = "EDIT KOLEKSI BUKU";
+      document.getElementById('rowNum').value = b.rowNum;
+      document.getElementById('idCover').value = b['ID Cover Buku'] || "";
+      document.getElementById('judul').value = b['Judul Buku'] || "";
+      document.getElementById('penulis').value = b['Penulis'] || "";
+      document.getElementById('tahun').value = b['Tahun Terbit'] || "";
+      document.getElementById('halaman').value = b['Halaman'] || "";
+      document.getElementById('isbn').value = b['ISBN'] || "";
+      document.getElementById('harga').value = b['Harga'] || "";
+      document.getElementById('kategori').value = b['Kategori'] || "Referensi";
+      document.getElementById('deskripsi').value = b['Deskripsi'] || "";
+      document.getElementById('btnSubmit').innerText = "SIMPAN PERUBAHAN";
+      toggleSidebar();
+    }
+
+    function deleteBook(rowNum, judul) {
+      Swal.fire({
+        title: 'Hapus Buku?',
+        text: `Buku "${judul}" akan dihapus permanen dari Google Sheet!`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Ya, Hapus!',
+        background: '#0f172a',
+        color: '#fff'
+      }).then((res) => {
+        if (res.isConfirmed) {
+          Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+          google.script.run.withSuccessHandler(r => {
+            if(r.success) {
+              Swal.fire({ icon: 'success', title: 'Berhasil Dihapus!', timer: 1500 });
+              loadData();
+            }
+          }).deleteBookData(rowNum);
+        }
+      });
+    }
+
+    document.getElementById('bookForm').onsubmit = function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmit');
+      const file = document.getElementById('fileCover').files[0];
+      
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> PROSES...`;
+
+      const payload = {
+        rowNum: document.getElementById('rowNum').value,
+        idCover: document.getElementById('idCover').value,
+        judul: document.getElementById('judul').value, 
+        penulis: document.getElementById('penulis').value,
+        penerbit: "IPK Publisher", 
+        tahun: document.getElementById('tahun').value,
+        halaman: document.getElementById('halaman').value, 
+        isbn: document.getElementById('isbn').value, 
+        kategori: document.getElementById('kategori').value, 
+        harga: document.getElementById('harga').value, 
+        deskripsi: document.getElementById('deskripsi').value
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          payload.fileName = file.name; 
+          payload.fileType = file.type; 
+          payload.fileData = ev.target.result;
+          saveData(payload);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        payload.fileName = ""; payload.fileType = ""; payload.fileData = "";
+        saveData(payload);
+      }
+    };
+
+    function saveData(payload) {
+      google.script.run.withSuccessHandler(res => {
+        if(res.success) {
+          Swal.fire({ icon: 'success', title: 'Database Sheets Diperbarui!', showConfirmButton: false, timer: 2000 });
+          document.getElementById('bookForm').reset();
+          toggleSidebar();
+          loadData();
+        } else {
+          Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+        }
+        document.getElementById('btnSubmit').disabled = false;
+        document.getElementById('btnSubmit').innerText = "PUBLISH BUKU";
+      }).saveBookData(payload);
+    }
+  </script>
+</body>
+</html>
