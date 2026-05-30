@@ -2,6 +2,7 @@ const SS_ID = "1kCVxbwRvFSjVXV60efxXaaV1ECuf6GoVoE-BBHSOeD8";
 const FOLDER_COVER_ID = "1SOogj1x50sDAkXQ-XODrpkxOB7XKiT-T"; 
 const ADMIN_PASS = "46035";
 
+// Tetap dipertahankan jika Anda ingin membuka langsung dari link Google Web App
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
@@ -10,12 +11,39 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// Fungsi Otentikasi Admin di sisi Server
+// Pintu masuk utama untuk request dari GitHub Pages via Fetch API
+function doPost(e) {
+  try {
+    const requestData = JSON.parse(e.postData.contents);
+    const action = requestData.action;
+    let result = {};
+
+    if (action === "getSheetData") {
+      result = getSheetData();
+    } else if (action === "verifyAdminPassword") {
+      result = verifyAdminPassword(requestData.pass);
+    } else if (action === "saveBookData") {
+      result = saveBookData(requestData.formData);
+    } else if (action === "deleteBookData") {
+      result = deleteBookData(requestData.rowNum);
+    } else {
+      result = { success: false, message: "Aksi tidak dikenali." };
+    }
+
+    // Mengembalikan output dalam bentuk JSON agar diizinkan oleh CORS Browser di GitHub
+    return ContentService.createTextOutput(JSON.stringify(result))
+                         .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: error.toString() }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function verifyAdminPassword(inputPass) {
   return inputPass === ADMIN_PASS;
 }
 
-// Menarik data dari Google Sheets dengan mapping header asli
 function getSheetData() {
   try {
     const ss = SpreadsheetApp.openById(SS_ID);
@@ -27,25 +55,24 @@ function getSheetData() {
     const headers = data[0].map(h => h.toString().trim());
     const rows = data.slice(1);
 
-    // Menyisipkan rowNum asli untuk kebutuhan tracking Edit/Hapus data
     return rows.map((row, index) => {
       let obj = { rowNum: index + 2 }; 
       headers.forEach((header, i) => {
         obj[header] = row[i] !== undefined ? row[i] : "";
       });
       return obj;
-    }).reverse(); // Buku terbaru otomatis tampil di urutan paling atas katalog
-  } catch (e) { throw new Error(e.message); }
+    }).reverse();
+  } catch (e) { 
+    return { success: false, message: e.message };
+  }
 }
 
-// Fungsi Menyimpan Data (Menangani Input Buku Baru & Perubahan/Edit Buku)
 function saveBookData(formData) {
   try {
     const ss = SpreadsheetApp.openById(SS_ID);
     const sheet = ss.getSheets()[0];
     let fileId = formData.idCover || "";
 
-    // Memproses konversi file gambar cover ke Google Drive jika diunggah berkas baru
     if (formData.fileData && formData.fileData.includes(",")) {
       const folder = DriveApp.getFolderById(FOLDER_COVER_ID);
       const bytes = Utilities.base64Decode(formData.fileData.split(',')[1]);
@@ -69,23 +96,24 @@ function saveBookData(formData) {
     ];
 
     if (formData.rowNum && formData.rowNum !== "") {
-      // JIKA MODE EDIT: Perbarui baris yang sudah ada
       const range = sheet.getRange(Number(formData.rowNum), 1, 1, rowData.length);
       range.setValues([rowData]);
     } else {
-      // JIKA MODE TAMBAH BUKU BARU: Tambah baris baru otomatis di Google Sheets
       sheet.appendRow(rowData);
     }
     return { success: true };
-  } catch (e) { return { success: false, message: e.toString() }; }
+  } catch (e) { 
+    return { success: false, message: e.toString() };
+  }
 }
 
-// Fungsi Menghapus Baris Data Buku
 function deleteBookData(rowNum) {
   try {
     const ss = SpreadsheetApp.openById(SS_ID);
     const sheet = ss.getSheets()[0];
     sheet.deleteRow(Number(rowNum));
     return { success: true };
-  } catch (e) { return { success: false, message: e.toString() }; }
+  } catch (e) { 
+    return { success: false, message: e.toString() }; 
+  }
 }
