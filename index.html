@@ -37,7 +37,6 @@
       padding: 100px 0 80px;
     }
 
-    /* Form Drawer Admin (Sisi Kiri Sesuai Aturan Desain Awal) */
     #sidebarAdmin {
       position: fixed;
       top: 0;
@@ -217,6 +216,9 @@
   </footer>
 
   <script>
+    // GANTI TULISAN DI BAWAH INI DENGAN URL WEB APP EXEC ANDA YANG SEBENARNYA
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby1F8nSbKdY68lRHqMPUhCYPsVrAecSg-RGZVeJChR9X8Sh2cKoPRfzAH6grTQ1yAayYA/exec";
+
     let allBooks = [];
     let filteredData = [];
     let currentPage = 1;
@@ -225,15 +227,34 @@
 
     window.onload = () => { loadData(); };
 
-    function loadData() {
+    // Fungsi helper untuk menjembatani Fetch API menggantikan google.script.run
+    async function panggilBackend(action, dataTambahan = {}) {
+      const payload = { action: action, ...dataTambahan };
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          redirect: "follow"
+        });
+        return await response.json();
+      } catch (error) {
+        console.error("Gagal terhubung ke Cloud: ", error);
+        Swal.fire({ icon: 'error', title: 'Koneksi Gagal', text: 'Gagal berkomunikasi dengan server cloud Google Sheets.' });
+        document.getElementById('loader').classList.add('d-none');
+        return null;
+      }
+    }
+
+    async function loadData() {
       document.getElementById('loader').classList.remove('d-none');
-      google.script.run.withSuccessHandler(res => {
-        allBooks = res;
+      const res = await panggilBackend("getSheetData");
+      if (res) {
+        allBooks = Array.isArray(res) ? res : [];
         filteredData = [...allBooks];
         calcStats();
         showPage(1);
-        document.getElementById('loader').classList.add('d-none');
-      }).getSheetData();
+      }
+      document.getElementById('loader').classList.add('d-none');
     }
 
     function calcStats() {
@@ -279,7 +300,8 @@
       let html = "";
       data.forEach(b => {
         const id = b['ID Cover Buku'] ? b['ID Cover Buku'].toString().trim() : "";
-        const img = id ? `https://lh3.googleusercontent.com/d/${id}` : "https://via.placeholder.com/300x400";
+        // Render menggunakan alternatif drive thumbnail viewer agar aman di muat di domain eksternal GitHub
+        const img = id ? `https://lh3.googleusercontent.com/d/${id}=s400` : "https://via.placeholder.com/300x400";
         const wa = "https://wa.me/6285179917811?text=" + encodeURIComponent(`Halo IPK, saya tertarik dengan buku: *${b['Judul Buku']}*`);
         
         let adminBtns = "";
@@ -337,10 +359,8 @@
       document.getElementById('sidebarAdmin').classList.toggle('open'); 
     }
 
-    // Mengontrol Hak Akses dan Fungsi Ganda Tombol Tambah Buku Admin
     async function checkAdminAccess() {
       if(isAdmin) {
-        // Mengembalikan perilaku asli: Jika admin telah aktif, klik tombol ini akan membuka Drawer Input Baru
         document.getElementById('sidebarTitle').innerText = "INPUT KOLEKSI BUKU";
         document.getElementById('bookForm').reset();
         document.getElementById('rowNum').value = "";
@@ -360,21 +380,20 @@
       });
       
       if (pass) {
-        google.script.run.withSuccessHandler(isValid => {
-          if(isValid) {
-            isAdmin = true;
-            // Merubah label tombol menjadi tombol fungsional "TAMBAH BUKU"
-            document.getElementById('adminPanelBtn').innerHTML = `<i class="fa-solid fa-plus me-2"></i>TAMBAH BUKU`;
-            document.getElementById('adminPanelBtn').className = "btn btn-warning rounded-pill px-4 fw-bold text-dark";
-            Swal.fire({ icon: 'success', title: 'Akses Diterima!', showConfirmButton: false, timer: 1500 });
-            showPage(currentPage);
-            
-            // Otomatis munculkan panel form setelah login berhasil pertama kali
-            toggleSidebar();
-          } else {
-            Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: 'Password Salah!' });
-          }
-        }).verifyAdminPassword(pass);
+        Swal.fire({ title: 'Memverifikasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        const isValid = await panggilBackend("verifyAdminPassword", { pass: pass });
+        Swal.close();
+        
+        if(isValid) {
+          isAdmin = true;
+          document.getElementById('adminPanelBtn').innerHTML = `<i class="fa-solid fa-plus me-2"></i>TAMBAH BUKU`;
+          document.getElementById('adminPanelBtn').className = "btn btn-warning rounded-pill px-4 fw-bold text-dark";
+          Swal.fire({ icon: 'success', title: 'Akses Diterima!', showConfirmButton: false, timer: 1500 });
+          showPage(currentPage);
+          toggleSidebar();
+        } else {
+          Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: 'Password Salah!' });
+        }
       }
     }
 
@@ -395,7 +414,7 @@
       toggleSidebar();
     }
 
-    function deleteBook(rowNum, judul) {
+    async function deleteBook(rowNum, judul) {
       Swal.fire({
         title: 'Hapus Buku?',
         text: `Buku "${judul}" akan dihapus permanen dari Google Sheet!`,
@@ -405,15 +424,14 @@
         confirmButtonText: 'Ya, Hapus!',
         background: '#0f172a',
         color: '#fff'
-      }).then((res) => {
+      }).then(async (res) => {
         if (res.isConfirmed) {
           Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-          google.script.run.withSuccessHandler(r => {
-            if(r.success) {
-              Swal.fire({ icon: 'success', title: 'Berhasil Dihapus!', timer: 1500 });
-              loadData();
-            }
-          }).deleteBookData(rowNum);
+          const r = await panggilBackend("deleteBookData", { rowNum: rowNum });
+          if(r && r.success) {
+            Swal.fire({ icon: 'success', title: 'Berhasil Dihapus!', timer: 1500 });
+            loadData();
+          }
         }
       });
     }
@@ -455,19 +473,18 @@
       }
     };
 
-    function saveData(payload) {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          Swal.fire({ icon: 'success', title: 'Database Sheets Diperbarui!', showConfirmButton: false, timer: 2000 });
-          document.getElementById('bookForm').reset();
-          toggleSidebar();
-          loadData();
-        } else {
-          Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
-        }
-        document.getElementById('btnSubmit').disabled = false;
-        document.getElementById('btnSubmit').innerText = "PUBLISH BUKU";
-      }).saveBookData(payload);
+    async function saveData(payload) {
+      const res = await panggilBackend("saveBookData", { formData: payload });
+      if(res && res.success) {
+        Swal.fire({ icon: 'success', title: 'Database Sheets Diperbarui!', showConfirmButton: false, timer: 2000 });
+        document.getElementById('bookForm').reset();
+        toggleSidebar();
+        loadData();
+      } else {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: res ? res.message : 'Terjadi kesalahan sistem.' });
+      }
+      document.getElementById('btnSubmit').disabled = false;
+      document.getElementById('btnSubmit').innerText = "PUBLISH BUKU";
     }
   </script>
 </body>
